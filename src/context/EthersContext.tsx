@@ -1,8 +1,8 @@
-// src/context/EthersContext.tsx (FINAL, BUG-FIXED Ethers v6 Code)
+// src/context/EthersContext.tsx (FINALIZED with Ethers v6 Interface Fix)
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-// Ethers v6 Imports: BrowserProvider connects to MetaMask
-import { BrowserProvider, Contract, Signer } from 'ethers'; 
+// Ethers v6 Imports: ADD 'Interface' to correctly parse complex ABIs
+import { BrowserProvider, Contract, Signer, Interface } from 'ethers'; 
 import { CONTRACTS } from '@/lib/config'; // Contract addresses and ABIs
 
 // --- TYPES ---
@@ -14,9 +14,11 @@ interface EthersContextType {
     address: string | null;
     isConnected: boolean;
     error: string | null;
+    // Contract Instances
     staffRegistryContract: Contract | null;
     inventoryLedgerContract: Contract | null; 
     transactionProcessorContract: Contract | null; 
+    // Functions
     connectWallet: () => Promise<void>;
     disconnectWallet: () => void;
     getChainId: () => Promise<number | null>;
@@ -51,27 +53,33 @@ export const EthersProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
 
         try {
-            // Ethers v6 FIX: Use BrowserProvider and pass the raw provider object
+            // Ethers v6 FIX: Use BrowserProvider
             const newProvider = new BrowserProvider(window.ethereum); 
             
             // This triggers the real MetaMask connection and selection pop-up
             const newSigner = await newProvider.getSigner(); 
             const newAddress = await newSigner.getAddress();
 
-            // Initialize Contracts with the connected signer (for WRITE operations)
+            // FIX: Use new Interface(ABI) to explicitly parse the JSON fragments for Ethers v6
+
+            // 1. Staff Registry Contract (for auth/staff creation)
             const staffReg = new Contract(
                 CONTRACTS.StaffRegistry.address,
-                CONTRACTS.StaffRegistry.abi as any[], 
+                new Interface(CONTRACTS.StaffRegistry.abi as any[]), // FIX APPLIED
                 newSigner 
             );
+            
+            // 2. Inventory Ledger Contract (for item creation/stock updates)
             const inventoryLedger = new Contract(
                 CONTRACTS.InventoryLedger.address,
-                CONTRACTS.InventoryLedger.abi as any[], 
+                new Interface(CONTRACTS.InventoryLedger.abi as any[]), // FIX APPLIED
                 newSigner 
             );
+            
+            // 3. Transaction Processor Contract (for sales)
             const transactionProcessor = new Contract(
                 CONTRACTS.TransactionProcessor.address,
-                CONTRACTS.TransactionProcessor.abi as any[], 
+                new Interface(CONTRACTS.TransactionProcessor.abi as any[]), // FIX APPLIED
                 newSigner 
             );
 

@@ -1,4 +1,4 @@
-// src/hooks/useManagerAuth.ts
+// src/hooks/useManagerAuth.ts (Defensive Programming Fix)
 
 import { useEthers } from '@/context/EthersContext';
 import { MANAGER_ROLE_HASH } from '@/lib/config';
@@ -11,32 +11,26 @@ interface ManagerAuth {
     managerRoleHash: string;
 }
 
-/**
- * Custom hook to check if the connected wallet is the Manager (Admin).
- * Relies on the StaffRegistry contract's hasRole function.
- */
 export const useManagerAuth = (): ManagerAuth => {
-    // Get wallet and contract instance from Ethers context
     const { address, isConnected, staffRegistryContract } = useEthers();
     const [isManager, setIsManager] = useState(false);
     const [isLoadingAuth, setIsLoadingAuth] = useState(false);
 
     useEffect(() => {
-        // Only proceed if connected and contract is loaded
+        // FIX: Only proceed if the contract object is initialized and connected
         if (!isConnected || !staffRegistryContract || !address) {
             setIsManager(false);
             setIsLoadingAuth(false);
-            return;
+            return; 
         }
 
         setIsLoadingAuth(true);
 
         const checkRole = async () => {
             try {
-                // Ethers v6 Contract Read: hasRole(bytes32 role, address account)
-                const result = await staffRegistryContract.hasRole(MANAGER_ROLE_HASH, address);
-                // Contract returns boolean in this OpenZeppelin structure
-                setIsManager(result as boolean); 
+                // This call is now safe (prevents "hasRole is not a function")
+                const result = await staffRegistryContract.hasRole(MANAGER_ROLE_HASH, address); 
+                setIsManager(result as boolean);
             } catch (err) {
                 console.error("Error checking manager role:", err);
                 setIsManager(false);
@@ -47,12 +41,11 @@ export const useManagerAuth = (): ManagerAuth => {
 
         checkRole();
         
-        // Polling logic: Periodically check the role status (every 10 seconds)
         const intervalId = setInterval(checkRole, 10000); 
 
         return () => clearInterval(intervalId);
 
-    }, [isConnected, address, staffRegistryContract]);
+    }, [isConnected, address, staffRegistryContract]); 
 
 
     return {

@@ -1,10 +1,81 @@
-// src/lib/config.ts
+// src/lib/config.ts (FINAL & CORRECTED)
 
-// Using 'viem' Abi type for robust type checking of the ABI JSON structure
 import { Abi } from 'viem'; 
 
-// --- 1. STAFF REGISTRY ABI (First JSON Block) ---
+// --- 1. STAFF REGISTRY ABI (Full JSON required here) ---
 export const STAFF_REGISTRY_ABI = [
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "username",
+				"type": "string"
+			},
+			{
+				"internalType": "address",
+				"name": "staffAddress",
+				"type": "address"
+			}
+		],
+		"name": "createStaffAccount",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "role",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "address",
+				"name": "account",
+				"type": "address"
+			}
+		],
+		"name": "grantRole",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "role",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "address",
+				"name": "account",
+				"type": "address"
+			}
+		],
+		"name": "renounceRole",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "role",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "address",
+				"name": "account",
+				"type": "address"
+			}
+		],
+		"name": "revokeRole",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
 	{
 		"inputs": [
 			{
@@ -200,6 +271,19 @@ export const STAFF_REGISTRY_ABI = [
 		"type": "event"
 	},
 	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "newManager",
+				"type": "address"
+			}
+		],
+		"name": "updateManager",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
 		"inputs": [],
 		"name": "DEFAULT_ADMIN_ROLE",
 		"outputs": [
@@ -210,50 +294,6 @@ export const STAFF_REGISTRY_ABI = [
 			}
 		],
 		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "MANAGER_ROLE",
-		"outputs": [
-			{
-				"internalType": "bytes32",
-				"name": "",
-				"type": "bytes32"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "STAFF_ROLE",
-		"outputs": [
-			{
-				"internalType": "bytes32",
-				"name": "",
-				"type": "bytes32"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "username",
-				"type": "string"
-			},
-			{
-				"internalType": "address",
-				"name": "staffAddress",
-				"type": "address"
-			}
-		],
-		"name": "createStaffAccount",
-		"outputs": [],
-		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -391,24 +431,6 @@ export const STAFF_REGISTRY_ABI = [
 				"type": "address"
 			}
 		],
-		"name": "grantRole",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "bytes32",
-				"name": "role",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "address",
-				"name": "account",
-				"type": "address"
-			}
-		],
 		"name": "hasRole",
 		"outputs": [
 			{
@@ -441,6 +463,19 @@ export const STAFF_REGISTRY_ABI = [
 	},
 	{
 		"inputs": [],
+		"name": "MANAGER_ROLE",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
 		"name": "managerWallet",
 		"outputs": [
 			{
@@ -453,39 +488,16 @@ export const STAFF_REGISTRY_ABI = [
 		"type": "function"
 	},
 	{
-		"inputs": [
+		"inputs": [],
+		"name": "STAFF_ROLE",
+		"outputs": [
 			{
 				"internalType": "bytes32",
-				"name": "role",
+				"name": "",
 				"type": "bytes32"
-			},
-			{
-				"internalType": "address",
-				"name": "account",
-				"type": "address"
 			}
 		],
-		"name": "renounceRole",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "bytes32",
-				"name": "role",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "address",
-				"name": "account",
-				"type": "address"
-			}
-		],
-		"name": "revokeRole",
-		"outputs": [],
-		"stateMutability": "nonpayable",
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -505,19 +517,6 @@ export const STAFF_REGISTRY_ABI = [
 			}
 		],
 		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "newManager",
-				"type": "address"
-			}
-		],
-		"name": "updateManager",
-		"outputs": [],
-		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -549,10 +548,11 @@ export const STAFF_REGISTRY_ABI = [
 		"stateMutability": "view",
 		"type": "function"
 	}
+
 ] as const satisfies Abi;
 
 
-// --- 2. INVENTORY LEDGER ABI (Third JSON Block) ---
+// --- 2. INVENTORY LEDGER ABI (Full JSON required here) ---
 export const INVENTORY_LEDGER_ABI = [
 	{
 		"inputs": [
@@ -718,7 +718,7 @@ export const INVENTORY_LEDGER_ABI = [
 ] as const satisfies Abi;
 
 
-// --- 3. TRANSACTION PROCESSOR ABI (Fourth JSON Block) ---
+// --- 3. TRANSACTION PROCESSOR ABI (Full JSON required here) ---
 export const TRANSACTION_PROCESSOR_ABI = [
 	{
 		"inputs": [
@@ -865,19 +865,12 @@ export const TRANSACTION_PROCESSOR_ABI = [
 ] as const satisfies Abi;
 
 
-// --- 4. DEPLOYMENT ADDRESSES (Placeholders - MUST BE UPDATED AFTER DEPLOYMENT) ---
-// Note: These addresses are conceptual Hardhat defaults for local development.
-const HARDHAT_REGISTRY_ADDR: string = "0x5FbDB2315678aeCB367F032d93F642f64180aa3";
-const HARDHAT_LEDGER_ADDR: string = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
-const HARDHAT_TXN_PROCESSOR_ADDR: string = "0x9fE46755CD0C28CAd0B3F1735aE522E2f48A54c8";
+// --- 4. DEPLOYMENT ADDRESSES (Using your confirmed deployed addresses) ---
+const REGISTRY_ADDRESS: string = "0x174bed6501965142051cbe2656de0ee9395bb64c";
+const LEDGER_ADDRESS: string = "0xbd83d57d7192b0c58ed76ac6f186f50555fd3327";
+const TXN_PROCESSOR_ADDRESS: string = "0x03e1c079f297d9dd09683904dafca47786353c20";
 
-// Use environment variables for production/testnet deployment
-const REGISTRY_ADDRESS: string = (process.env.NODE_ENV === 'development' ? HARDHAT_REGISTRY_ADDR : (process.env.VITE_STAFF_REGISTRY_ADDR || "0x_STAFF_REGISTRY_ADDRESS_"));
-const LEDGER_ADDRESS: string = (process.env.NODE_ENV === 'development' ? HARDHAT_LEDGER_ADDR : (process.env.VITE_INVENTORY_LEDGER_ADDR || "0x_INVENTORY_LEDGER_ADDRESS_"));
-const TXN_PROCESSOR_ADDRESS: string = (process.env.NODE_ENV === 'development' ? HARDHAT_TXN_PROCESSOR_ADDR : (process.env.VITE_TXN_PROCESSOR_ADDR || "0x_TXN_PROCESSOR_ADDRESS_"));
-
-
-// --- 5. EXPORT CONTRACTS OBJECT ---
+// Simplified logic: Use the deployed addresses directly.
 export const CONTRACTS = {
     StaffRegistry: {
         address: REGISTRY_ADDRESS,
@@ -894,7 +887,5 @@ export const CONTRACTS = {
 };
 
 // --- 6. EXPORT ROLE HASHES ---
-// Manager Role Hash: keccak256("MANAGER_ROLE")
 export const MANAGER_ROLE_HASH: string = '0x17282b0f44e138a834220b329437145e14b5536412140ed5445217a2202613b1'; 
-// Staff Role Hash: keccak256("STAFF_ROLE")
 export const STAFF_ROLE_HASH: string = '0x74291244519446f24be9859f515099042b083321523455a2d8299874a7962459';
