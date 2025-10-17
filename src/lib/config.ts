@@ -866,9 +866,9 @@ export const TRANSACTION_PROCESSOR_ABI = [
 
 
 // --- 4. DEPLOYMENT ADDRESSES (Using your confirmed deployed addresses) ---
-const REGISTRY_ADDRESS: string = "0x174bed6501965142051cbe2656de0ee9395bb64c";
-const LEDGER_ADDRESS: string = "0xbd83d57d7192b0c58ed76ac6f186f50555fd3327";
-const TXN_PROCESSOR_ADDRESS: string = "0x03e1c079f297d9dd09683904dafca47786353c20";
+const REGISTRY_ADDRESS: string = "0x47b1d50d8970d78214e145836d8b847f92971391";
+const LEDGER_ADDRESS: string = "0x290d34f084c0f7e795b59c589de6907fa257e582";
+const TXN_PROCESSOR_ADDRESS: string = "0xa2be22c77b546c8b5eb66cf320dff42cac782625";
 
 // Simplified logic: Use the deployed addresses directly.
 export const CONTRACTS = {
@@ -887,5 +887,5 @@ export const CONTRACTS = {
 };
 
 // --- 6. EXPORT ROLE HASHES ---
-export const MANAGER_ROLE_HASH: string = '0x17282b0f44e138a834220b329437145e14b5536412140ed5445217a2202613b1'; 
+export const MANAGER_ROLE_HASH: string = '0x241ecf16d79d0f8dbfb92cbc07fe17840425976cf0667f022fe9877caa831b08';
 export const STAFF_ROLE_HASH: string = '0x74291244519446f24be9859f515099042b083321523455a2d8299874a7962459';

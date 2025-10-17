@@ -1,9 +1,8 @@
-// src/context/EthersContext.tsx (FINALIZED with Ethers v6 Interface Fix)
+// src/context/EthersContext.tsx (FINAL FIX APPLIED + Debug Getter)
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-// Ethers v6 Imports: ADD 'Interface' to correctly parse complex ABIs
 import { BrowserProvider, Contract, Signer, Interface } from 'ethers'; 
-import { CONTRACTS } from '@/lib/config'; // Contract addresses and ABIs
+import { CONTRACTS } from '@/lib/config'; 
 
 // --- TYPES ---
 export type EthersProvider = BrowserProvider;
@@ -14,14 +13,13 @@ interface EthersContextType {
     address: string | null;
     isConnected: boolean;
     error: string | null;
-    // Contract Instances
     staffRegistryContract: Contract | null;
     inventoryLedgerContract: Contract | null; 
     transactionProcessorContract: Contract | null; 
-    // Functions
     connectWallet: () => Promise<void>;
     disconnectWallet: () => void;
     getChainId: () => Promise<number | null>;
+    getManagerWalletAddress: () => Promise<string | null>;
 }
 
 const EthersContext = createContext<EthersContextType | undefined>(undefined);
@@ -53,33 +51,24 @@ export const EthersProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
 
         try {
-            // Ethers v6 FIX: Use BrowserProvider
             const newProvider = new BrowserProvider(window.ethereum); 
-            
-            // This triggers the real MetaMask connection and selection pop-up
             const newSigner = await newProvider.getSigner(); 
             const newAddress = await newSigner.getAddress();
 
-            // FIX: Use new Interface(ABI) to explicitly parse the JSON fragments for Ethers v6
-
-            // 1. Staff Registry Contract (for auth/staff creation)
+            // Contract Initialization (FIXED: Interface parsing)
             const staffReg = new Contract(
                 CONTRACTS.StaffRegistry.address,
-                new Interface(CONTRACTS.StaffRegistry.abi as any[]), // FIX APPLIED
+                new Interface(CONTRACTS.StaffRegistry.abi as any[]), 
                 newSigner 
             );
-            
-            // 2. Inventory Ledger Contract (for item creation/stock updates)
             const inventoryLedger = new Contract(
                 CONTRACTS.InventoryLedger.address,
-                new Interface(CONTRACTS.InventoryLedger.abi as any[]), // FIX APPLIED
+                new Interface(CONTRACTS.InventoryLedger.abi as any[]), 
                 newSigner 
             );
-            
-            // 3. Transaction Processor Contract (for sales)
             const transactionProcessor = new Contract(
                 CONTRACTS.TransactionProcessor.address,
-                new Interface(CONTRACTS.TransactionProcessor.abi as any[]), // FIX APPLIED
+                new Interface(CONTRACTS.TransactionProcessor.abi as any[]), 
                 newSigner 
             );
 
@@ -113,8 +102,28 @@ export const EthersProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return Number(network.chainId);
     }, [provider]);
 
+    /**
+     * Reads the managerWallet address directly from the deployed StaffRegistry contract.
+     */
+    const getManagerWalletAddress = useCallback(async (): Promise<string | null> => {
+        if (!provider || !CONTRACTS.StaffRegistry.address) return null;
 
-    // Effect to handle account/chain changes
+        try {
+            const staffRegReadOnly = new Contract(
+                CONTRACTS.StaffRegistry.address,
+                new Interface(CONTRACTS.StaffRegistry.abi as any[]),
+                provider 
+            );
+            // managerWallet is a public state variable getter
+            const addressResult = await staffRegReadOnly.managerWallet();
+            return addressResult;
+        } catch (e) {
+            console.error("Failed to read managerWallet address:", e);
+            return null;
+        }
+    }, [provider]); 
+
+
     useEffect(() => {
         if (window.ethereum) {
             const handleAccountsChanged = (accounts: string[]) => {
@@ -128,7 +137,6 @@ export const EthersProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 connectWallet(); 
             };
             
-            // Note: Keep the MetaMask event listeners on window.ethereum
             window.ethereum.on('accountsChanged', handleAccountsChanged);
             window.ethereum.on('chainChanged', handleChainChanged);
 
@@ -152,14 +160,14 @@ export const EthersProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             transactionProcessorContract,
             connectWallet, 
             disconnectWallet,
-            getChainId
+            getChainId,
+            getManagerWalletAddress,
         }}>
             {children}
         </EthersContext.Provider>
     );
 };
 
-// Extend the Window interface to include Ethereum provider for TypeScript
 declare global {
   interface Window {
     ethereum?: any;
