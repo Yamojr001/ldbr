@@ -867,8 +867,8 @@ export const TRANSACTION_PROCESSOR_ABI = [
 
 // --- 4. DEPLOYMENT ADDRESSES (Using your confirmed deployed addresses) ---
 const REGISTRY_ADDRESS: string = "0x47b1d50d8970d78214e145836d8b847f92971391";
-const LEDGER_ADDRESS: string = "0x290d34f084c0f7e795b59c589de6907fa257e582";
-const TXN_PROCESSOR_ADDRESS: string = "0xa2be22c77b546c8b5eb66cf320dff42cac782625";
+const LEDGER_ADDRESS: string = "0x5c62c5613346832b632881828ef29bb4e0af25b1";
+const TXN_PROCESSOR_ADDRESS: string = "0xd0a9038790223698e6dfa2024e852a497bbc490f";
 
 // Simplified logic: Use the deployed addresses directly.
 export const CONTRACTS = {

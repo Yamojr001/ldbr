@@ -1,4 +1,4 @@
-// src/pages/ManagerDashboard.tsx (FINAL CODE)
+// src/pages/ManagerDashboard.tsx (FINAL CORRECTED CODE)
 
 import React, { useState } from 'react';
 import { Separator } from '@/components/ui/separator';
@@ -9,7 +9,8 @@ import StaffCreationForm from '@/components/Manager/StaffCreationForm';
 import AddItemForm from '@/components/Inventory/AddItemForm'; 
 import InventoryTable from '@/components/Inventory/InventoryTable';   
 import OverviewCharts from '@/components/Dashboard/OverviewCharts'; 
-import ContractDebug from '@/components/Dashboard/ContractDebug'; // <-- ADDED
+import ContractDebug from '@/components/Dashboard/ContractDebug'; 
+import CheckoutTerminal from '@/components/Sales/CheckoutTerminal'; // <-- CORRECTED IMPORT
 import { CONTRACTS } from '@/lib/config';
 
 // Define the Sidebar Navigation Items
@@ -19,12 +20,13 @@ const navItems = [
     { name: "Staff & Users", icon: Users }, 
     { name: "Sales & Analytics", icon: BarChart3 },
     { name: "Reports & Export", icon: FileText },
-    { name: "Contract Debug", icon: Code }, // <-- ADDED DEBUG TAB
+    { name: "Contract Debug", icon: Code }, 
 ];
 
 const ManagerDashboard: React.FC = () => {
     const { disconnectWallet, address } = useEthers();
-    const [activeTab, setActiveTab] = useState<string>('Dashboard Overview');
+    // Defaulting to the Sales tab since that is the new feature
+    const [activeTab, setActiveTab] = useState<string>('Sales & Analytics'); 
 
     const renderContent = () => {
         switch (activeTab) {
@@ -45,10 +47,20 @@ const ManagerDashboard: React.FC = () => {
                     </div>
                 );
             case 'Sales & Analytics':
-                return <OverviewCharts />; // Re-use charts component
+                // FIX: Integrate the Checkout Terminal for the Manager/Admin
+                return (
+                    <div className="space-y-8">
+                        <div className="mb-8">
+                            <h3 className="text-2xl font-bold text-white mb-4">Process New Sale</h3>
+                            <CheckoutTerminal />
+                        </div>
+                        <h3 className="text-2xl font-bold text-white mt-8">Sales Analytics</h3>
+                        <OverviewCharts />
+                    </div>
+                );
             case 'Reports & Export':
                 return <h3 className="text-xl text-gray-400">PDF, CSV, and SQL report generation tools will be placed here.</h3>;
-            case 'Contract Debug': // <-- DEBUG CASE IMPLEMENTED
+            case 'Contract Debug': 
                 return <ContractDebug />; 
             default:
                 return <h3 className="text-xl text-gray-400">Content not found.</h3>;
