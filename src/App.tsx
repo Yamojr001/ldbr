@@ -11,7 +11,7 @@ import { Toaster } from './components/ui/toaster';
 import StaffLoginForm from './components/Sales/StaffLoginForm'; 
 import { Loader2 } from 'lucide-react';
 import { Button } from './components/ui/button'; 
-import { Separator } from './components/ui/separator'; // Needed for layout
+import { Separator } from './components/ui/separator'; 
 
 const RootView: React.FC = () => {
     // Hooks
@@ -43,8 +43,9 @@ const RootView: React.FC = () => {
         );
     }
     
-    // RENDER 1.5: Unauthorized Screen (CRITICAL DEBUG)
+    // RENDER 1.5: Unauthorized Screen (DEBUG)
     if (isConnected && !isManager) {
+        // The display now shows the identical address that is unauthorized, highlighting the Hash Mismatch issue.
         return (
             <div className="min-h-screen flex items-center justify-center bg-red-950/20 text-white p-8">
                 <div className="bg-gray-900 p-8 rounded-lg border border-red-700 max-w-lg text-center">
@@ -64,10 +65,10 @@ const RootView: React.FC = () => {
                     </div>
                    
                     <p className="text-sm text-yellow-400 mt-6 mb-6 text-left">
-                        **SOLUTION:** Your connected wallet and the Contract's Manager are currently NOT authorized to match. Since the addresses *look* identical, this is a likely **CACHE or NETWORK STATE** issue.
+                        **CRITICAL DEBUG:** Addresses match, but the Manager Role check failed. This confirms the **MANAGER_ROLE_HASH** is the primary issue. Ensure `MANAGER_ROLE_HASH` in `config.ts` matches the contract's actual value: **`0x241ecf16d79d0f8dbfb92cbc07fe17840425976cf0667f022fe9877caa831b08`**
                     </p>
                     <Button onClick={disconnectWallet} variant="secondary">
-                        Disconnect Wallet & Try Hard Refresh
+                        Disconnect Wallet & Restart App
                     </Button>
                 </div>
             </div>

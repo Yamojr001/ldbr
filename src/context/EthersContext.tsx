@@ -1,25 +1,26 @@
-// src/context/EthersContext.tsx (FINAL FIX APPLIED + Debug Getter)
+// src/context/EthersContext.tsx (FINAL FIX: Ethers Namespace + Debug Getter)
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { BrowserProvider, Contract, Signer, Interface } from 'ethers'; 
+// FIX: Import everything as 'ethers' to resolve runtime reference errors (Interface is not defined)
+import * as ethers from 'ethers'; 
 import { CONTRACTS } from '@/lib/config'; 
 
 // --- TYPES ---
-export type EthersProvider = BrowserProvider;
+export type EthersProvider = ethers.BrowserProvider;
 
 interface EthersContextType {
     provider: EthersProvider | null;
-    signer: Signer | null;
+    signer: ethers.Signer | null;
     address: string | null;
     isConnected: boolean;
     error: string | null;
-    staffRegistryContract: Contract | null;
-    inventoryLedgerContract: Contract | null; 
-    transactionProcessorContract: Contract | null; 
+    staffRegistryContract: ethers.Contract | null;
+    inventoryLedgerContract: ethers.Contract | null; 
+    transactionProcessorContract: ethers.Contract | null; 
     connectWallet: () => Promise<void>;
     disconnectWallet: () => void;
     getChainId: () => Promise<number | null>;
-    getManagerWalletAddress: () => Promise<string | null>;
+    getManagerWalletAddress: () => Promise<string | null>; // DEBUG: Get contract's manager
 }
 
 const EthersContext = createContext<EthersContextType | undefined>(undefined);
@@ -34,12 +35,12 @@ export const useEthers = () => {
 
 export const EthersProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [provider, setProvider] = useState<EthersProvider | null>(null);
-    const [signer, setSigner] = useState<Signer | null>(null);
+    const [signer, setSigner] = useState<ethers.Signer | null>(null);
     const [address, setAddress] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [staffRegistryContract, setStaffRegistryContract] = useState<Contract | null>(null);
-    const [inventoryLedgerContract, setInventoryLedgerContract] = useState<Contract | null>(null);
-    const [transactionProcessorContract, setTransactionProcessorContract] = useState<Contract | null>(null);
+    const [staffRegistryContract, setStaffRegistryContract] = useState<ethers.Contract | null>(null);
+    const [inventoryLedgerContract, setInventoryLedgerContract] = useState<ethers.Contract | null>(null);
+    const [transactionProcessorContract, setTransactionProcessorContract] = useState<ethers.Contract | null>(null);
 
     const isConnected = !!address;
 
@@ -51,29 +52,29 @@ export const EthersProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
 
         try {
-            const newProvider = new BrowserProvider(window.ethereum); 
+            const newProvider = new ethers.BrowserProvider(window.ethereum); 
             const newSigner = await newProvider.getSigner(); 
             const newAddress = await newSigner.getAddress();
 
-            // Contract Initialization (FIXED: Interface parsing)
-            const staffReg = new Contract(
+            // Contract Initialization - using ethers.Contract and ethers.Interface (Fix for ABI parsing)
+            const staffReg = new ethers.Contract(
                 CONTRACTS.StaffRegistry.address,
-                new Interface(CONTRACTS.StaffRegistry.abi as any[]), 
+                new ethers.Interface(CONTRACTS.StaffRegistry.abi as any[]), 
                 newSigner 
             );
-            const inventoryLedger = new Contract(
+            const inventoryLedger = new ethers.Contract(
                 CONTRACTS.InventoryLedger.address,
-                new Interface(CONTRACTS.InventoryLedger.abi as any[]), 
+                new ethers.Interface(CONTRACTS.InventoryLedger.abi as any[]), 
                 newSigner 
             );
-            const transactionProcessor = new Contract(
+            const transactionProcessor = new ethers.Contract(
                 CONTRACTS.TransactionProcessor.address,
-                new Interface(CONTRACTS.TransactionProcessor.abi as any[]), 
+                new ethers.Interface(CONTRACTS.TransactionProcessor.abi as any[]), 
                 newSigner 
             );
 
             setProvider(newProvider as EthersProvider);
-            setSigner(newSigner as Signer); 
+            setSigner(newSigner as ethers.Signer); 
             setAddress(newAddress);
             setStaffRegistryContract(staffReg);
             setInventoryLedgerContract(inventoryLedger);
@@ -104,17 +105,17 @@ export const EthersProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     /**
      * Reads the managerWallet address directly from the deployed StaffRegistry contract.
+     * Used for debugging the Manager access issue.
      */
     const getManagerWalletAddress = useCallback(async (): Promise<string | null> => {
         if (!provider || !CONTRACTS.StaffRegistry.address) return null;
 
         try {
-            const staffRegReadOnly = new Contract(
+            const staffRegReadOnly = new ethers.Contract(
                 CONTRACTS.StaffRegistry.address,
-                new Interface(CONTRACTS.StaffRegistry.abi as any[]),
+                new ethers.Interface(CONTRACTS.StaffRegistry.abi as any[]),
                 provider 
             );
-            // managerWallet is a public state variable getter
             const addressResult = await staffRegReadOnly.managerWallet();
             return addressResult;
         } catch (e) {
