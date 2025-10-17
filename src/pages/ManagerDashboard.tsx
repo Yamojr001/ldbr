@@ -1,13 +1,15 @@
-// src/pages/ManagerDashboard.tsx
+// src/pages/ManagerDashboard.tsx (FINAL CODE)
 
 import React, { useState } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { Users, LayoutDashboard, Package, BarChart3, FileText, LogOut, Code } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useEthers } from '@/context/EthersContext'; 
-import StaffCreationForm from '@/components/Manager/StaffCreationForm'; // Component to be created
-import InventoryTable from '@/components/Inventory/InventoryTable';   // Component to be created
-import AddItemForm from '@/components/Inventory/AddItemForm';
+import StaffCreationForm from '@/components/Manager/StaffCreationForm'; 
+import AddItemForm from '@/components/Inventory/AddItemForm'; 
+import InventoryTable from '@/components/Inventory/InventoryTable';   
+import OverviewCharts from '@/components/Dashboard/OverviewCharts'; 
+import ContractDebug from '@/components/Dashboard/ContractDebug'; // <-- ADDED
 import { CONTRACTS } from '@/lib/config';
 
 // Define the Sidebar Navigation Items
@@ -17,7 +19,7 @@ const navItems = [
     { name: "Staff & Users", icon: Users }, 
     { name: "Sales & Analytics", icon: BarChart3 },
     { name: "Reports & Export", icon: FileText },
-    { name: "Contract Debug", icon: Code },
+    { name: "Contract Debug", icon: Code }, // <-- ADDED DEBUG TAB
 ];
 
 const ManagerDashboard: React.FC = () => {
@@ -26,37 +28,30 @@ const ManagerDashboard: React.FC = () => {
 
     const renderContent = () => {
         switch (activeTab) {
+            case 'Dashboard Overview': 
+                return <OverviewCharts />;
             case 'Staff & Users':
                 return (
                     <div className="space-y-8">
                         <StaffCreationForm />
-                        {/* Future component: Staff Listing/Management Table */}
+                        <p className="text-gray-400">...Staff listing table goes here...</p>
                     </div>
                 );
             case 'Inventory & Items':
                 return (
                     <div className="space-y-8">
-                        {/* Manager can add items AND view the full table */}
                         <AddItemForm /> 
                         <InventoryTable isManagerView={true} />
                     </div>
                 );
             case 'Sales & Analytics':
-                return <h3 className="text-xl text-gray-400">Sales Analytics and Market Graphs will be displayed here.</h3>;
+                return <OverviewCharts />; // Re-use charts component
             case 'Reports & Export':
                 return <h3 className="text-xl text-gray-400">PDF, CSV, and SQL report generation tools will be placed here.</h3>;
-            case 'Contract Debug':
-                return (
-                    <div className="bg-gray-800 p-6 rounded-lg font-mono text-sm space-y-2">
-                        <h3 className="text-lg text-cyan-400 mb-2">Debug Info</h3>
-                        <p className="text-gray-300">Connected Manager: {address}</p>
-                        <p className="text-gray-300">Staff Registry: {CONTRACTS.StaffRegistry.address}</p>
-                        <p className="text-gray-300">Inventory Ledger: {CONTRACTS.InventoryLedger.address}</p>
-                    </div>
-                );
-            case 'Dashboard Overview':
+            case 'Contract Debug': // <-- DEBUG CASE IMPLEMENTED
+                return <ContractDebug />; 
             default:
-                return <h3 className="text-xl text-gray-400">Welcome, Manager! All key performance indicators (KPIs) and summaries will appear here.</h3>;
+                return <h3 className="text-xl text-gray-400">Content not found.</h3>;
         }
     };
 

@@ -1,4 +1,4 @@
-// src/components/Manager/StaffCreationForm.tsx
+// src/components/Manager/StaffCreationForm.tsx (FINAL CODE)
 
 import React, { useState } from 'react';
 import { useEthers } from '@/context/EthersContext';
@@ -9,8 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { useToast } from '../ui/use-toast'; 
 import { Loader2, UserPlus, AlertTriangle, CheckCircle } from 'lucide-react';
-import { isAddress } from 'ethers'; // Ethers v6 utility for address validation
-import { STAFF_ROLE_HASH, MANAGER_ROLE_HASH } from '@/lib/config'; // Required for checking roles/hashes
+import * as ethers from 'ethers'; // FIX: Use wildcard import for consistent namespace access
+import { STAFF_ROLE_HASH, MANAGER_ROLE_HASH } from '@/lib/config'; 
 
 type StaffRole = 'Sales Manager' | 'Inventory Manager';
 
@@ -29,12 +29,12 @@ const StaffCreationForm: React.FC = () => {
         setFormError(null);
 
         if (!staffRegistryContract || !isConnected) {
-            setFormError("Wallet not connected or Contract not initialized.");
+            setFormError("Manager Wallet not connected/authorized to use contract.");
             return;
         }
 
-        // 1. Client-side Validation
-        if (!isAddress(walletAddress)) { 
+        // 1. Client-side Validation (FIX: Use ethers.isAddress)
+        if (!ethers.isAddress(walletAddress)) { 
             setFormError("Invalid Ethereum Wallet Address.");
             return;
         }
@@ -43,6 +43,7 @@ const StaffCreationForm: React.FC = () => {
 
         try {
             // 2. Transaction Call: createStaffAccount(string memory username, address staffAddress)
+            // This is the transaction that is currently failing due to RPC/Contract Revert
             const tx = await staffRegistryContract.createStaffAccount(username, walletAddress);
 
             toast({ title: "Transaction Sent", description: `Creating ${role} account for ${username}.` });
@@ -63,7 +64,16 @@ const StaffCreationForm: React.FC = () => {
 
         } catch (error: any) {
             console.error("Staff Creation Error:", error);
-            let message = "Transaction failed. Ensure this address/username is unique and you have gas.";
+            
+            // NOTE: The RPC error is currently masking the true contract revert reason.
+            let message = "Transaction failed. Please check network status (RPC/MetaMask Console) for true error.";
+            
+            // Attempt to parse common known errors (if they were returned)
+            if (error.reason && (error.reason.includes("UsernameTaken") || error.reason.includes("AccountExists"))) {
+                message = "Username or Wallet Address already registered.";
+            } else if (error.code === 'CALL_EXCEPTION') {
+                 message = "Transaction Execution Failed. Likely not the Manager or RPC issue.";
+            }
             
             setFormError(message);
             toast({ title: "Transaction Failed", description: message, variant: "destructive" });

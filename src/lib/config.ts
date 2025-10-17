@@ -1,6 +1,6 @@
 // src/lib/config.ts (FINAL & CORRECTED)
 
-import { Abi } from 'viem'; 
+import { Abi } from 'viem';
 
 // --- 1. STAFF REGISTRY ABI (Full JSON required here) ---
 export const STAFF_REGISTRY_ABI = [

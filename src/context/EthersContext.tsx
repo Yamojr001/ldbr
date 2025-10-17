@@ -1,7 +1,6 @@
-// src/context/EthersContext.tsx (FINAL FIX: Ethers Namespace + Debug Getter)
+// src/context/EthersContext.tsx (FINAL CODE)
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-// FIX: Import everything as 'ethers' to resolve runtime reference errors (Interface is not defined)
 import * as ethers from 'ethers'; 
 import { CONTRACTS } from '@/lib/config'; 
 
@@ -20,7 +19,8 @@ interface EthersContextType {
     connectWallet: () => Promise<void>;
     disconnectWallet: () => void;
     getChainId: () => Promise<number | null>;
-    getManagerWalletAddress: () => Promise<string | null>; // DEBUG: Get contract's manager
+    getManagerWalletAddress: () => Promise<string | null>;
+    getDefaultAdminRoleHash: () => Promise<string | null>; // <-- ADDED
 }
 
 const EthersContext = createContext<EthersContextType | undefined>(undefined);
@@ -56,7 +56,7 @@ export const EthersProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const newSigner = await newProvider.getSigner(); 
             const newAddress = await newSigner.getAddress();
 
-            // Contract Initialization - using ethers.Contract and ethers.Interface (Fix for ABI parsing)
+            // Contract Initialization - using ethers.Contract and ethers.Interface
             const staffReg = new ethers.Contract(
                 CONTRACTS.StaffRegistry.address,
                 new ethers.Interface(CONTRACTS.StaffRegistry.abi as any[]), 
@@ -103,10 +103,6 @@ export const EthersProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return Number(network.chainId);
     }, [provider]);
 
-    /**
-     * Reads the managerWallet address directly from the deployed StaffRegistry contract.
-     * Used for debugging the Manager access issue.
-     */
     const getManagerWalletAddress = useCallback(async (): Promise<string | null> => {
         if (!provider || !CONTRACTS.StaffRegistry.address) return null;
 
@@ -123,6 +119,24 @@ export const EthersProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             return null;
         }
     }, [provider]); 
+    
+    // START NEW FUNCTION IMPLEMENTATION
+    const getDefaultAdminRoleHash = useCallback(async (): Promise<string | null> => {
+        if (!provider || !CONTRACTS.StaffRegistry.address) return null;
+        try {
+            const staffRegReadOnly = new ethers.Contract(
+                CONTRACTS.StaffRegistry.address,
+                new ethers.Interface(CONTRACTS.StaffRegistry.abi as any[]),
+                provider
+            );
+            const hash = await staffRegReadOnly.DEFAULT_ADMIN_ROLE();
+            return hash;
+        } catch (e) {
+            console.error("Failed to read DEFAULT_ADMIN_ROLE hash:", e);
+            return null;
+        }
+    }, [provider]);
+    // END NEW FUNCTION IMPLEMENTATION
 
 
     useEffect(() => {
@@ -163,6 +177,7 @@ export const EthersProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             disconnectWallet,
             getChainId,
             getManagerWalletAddress,
+            getDefaultAdminRoleHash, // <-- ADDED
         }}>
             {children}
         </EthersContext.Provider>
