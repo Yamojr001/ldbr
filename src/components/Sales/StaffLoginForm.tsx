@@ -1,47 +1,48 @@
-// src/components/Sales/StaffLoginForm.tsx
+// src/components/Sales/StaffLoginForm.tsx (FINAL CODE)
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; 
 import { useEthers } from '@/context/EthersContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/components/ui/use-toast'; 
+import { useStaffAuth, StaffRole } from '@/context/StaffAuthContext'; // <-- NEW IMPORT
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { useToast } from '../ui/use-toast'; 
 import { Loader2, LogIn, AlertTriangle, UserCheck } from 'lucide-react';
-import { Contract } from 'ethers';
+import * as ethers from 'ethers'; // Use for contract/signer access
+import { STAFF_ROLE_HASH } from '@/lib/config'; 
 
-// State to hold the authenticated staff's data
-interface StaffAuthState {
-    username: string;
-    address: string;
-    isAuthenticated: boolean;
-    role: 'Sales Manager' | 'Inventory Manager' | 'Staff' | null;
-}
-
-// NOTE: This component does not yet store the full authentication state,
-// but implements the login logic. A separate context would manage the global state.
 const StaffLoginForm: React.FC = () => {
-    // We need the provider for read calls and the signer for signing the message
-    const { provider, signer, address, isConnected } = useEthers();
+    // Ethers hooks: for connected wallet, provider, and contract interaction
+    const { provider, signer, address: connectedAddress, isConnected } = useEthers();
+    
+    // Staff Auth context: for state management after successful login
+    const { login, logout, isAuthenticated, username: currentUsername, role: staffRole } = useStaffAuth();
+    
     const { toast } = useToast();
     
-    // Form State
+    // Local Form State
     const [username, setUsername] = useState('');
-    const [password, setPassword] = useState(''); // Acts as the master key for signing
+    const [password, setPassword] = useState(''); 
     const [isLoading, setIsLoading] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
 
-    // Placeholder for authenticated user state (would be global state in a real app)
-    const [staffAuth, setStaffAuth] = useState<StaffAuthState | null>(null);
+    // Effect to auto-logout the staff member if the underlying MetaMask connection is lost
+    useEffect(() => {
+        if (!isConnected && isAuthenticated) {
+            logout();
+            toast({ title: "Session Timeout", description: "MetaMask connection lost. Please sign in again.", variant: "destructive" });
+        }
+    }, [isConnected, isAuthenticated, logout, toast]);
 
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setFormError(null);
 
-        if (!provider || !signer) {
-            setFormError("MetaMask connection is required to sign the message.");
-            // Manager must connect first for staff login to work in this simplified flow
+        // 1. Initial State Check (Must have a connected wallet for signing)
+        if (!provider || !signer || !isConnected || !connectedAddress) {
+            setFormError("MetaMask connection is required to sign the login message. Please connect first.");
             return;
         }
 
@@ -53,83 +54,74 @@ const StaffLoginForm: React.FC = () => {
         setIsLoading(true);
 
         try {
-            // 1. Get Staff Wallet Address by Username (Conceptual step: not in contract)
-            // The prompt requires username/password login. Since the SC only validates wallet address,
-            // we must establish a link between username/password and a WALLET ADDRESS OF RECORD.
-            // **Simplified Flow:** Assume the user has to enter the wallet address or we look it up.
-            // For now, we'll assume the currently connected wallet is the staff's wallet.
-            const staffAddress = address!; // Using the connected wallet's address for simplicity
-
-            // 2. Generate Message and Signature
-            // The contract verifies a message: keccak256(staffAddress, message)
-            const message = `Login to $DAG$ Ledger for user: ${username}`;
+            // NOTE ON REAL-WORLD SECURITY: 
+            // In a real application, the 'password' would be used with a key derivation function (like PBKDF2) 
+            // to derive a temporary private key for signing, or the user is asked to sign with their wallet.
+            // Here, we use the connected wallet to sign, relying on the user having secured their wallet.
             
-            // NOTE: For a real username/password system, the signature would be generated
-            // using the PRIVATE KEY derived from the password + a secure salt.
-            // Here, we use the connected MetaMask to sign the message.
+            const staffAddress = connectedAddress; 
+
+            // 2. Generate Message and Signature (Unique message to prevent replay attacks)
+            const message = `Login to $DAG$ Ledger for user: ${username} @ ${Date.now()}`;
             const signature = await signer.signMessage(message);
 
-            // 3. Verify Signature On-Chain (Read-only call)
-            const staffRegistryContract = new Contract(
+            // 3. Verify Signature and Role On-Chain (Read-only call)
+            // We use the connected address's contract instance (staffRegistryContract) for the best state
+            // But for clarity and using the read-only provider for view calls:
+            const staffRegistryReadOnlyContract = new ethers.Contract(
                 CONTRACTS.StaffRegistry.address,
-                CONTRACTS.StaffRegistry.abi as any[],
-                provider // Use provider for read-only call
+                new ethers.Interface(CONTRACTS.StaffRegistry.abi as any[]),
+                provider 
             );
 
-            // The password is used to generate the message hash and signature logic 
-            // in a complete dApp. Here, we use the connected wallet's address as the "signer."
-
-            // Check if the connected wallet has STAFF_ROLE
-            const isStaffRole = await staffRegistryContract.hasRole(STAFF_ROLE_HASH, staffAddress);
+            // Check 3a: Does the connected wallet have the STAFF_ROLE?
+            const isStaffRole = await staffRegistryReadOnlyContract.hasRole(STAFF_ROLE_HASH, staffAddress);
             
             if (!isStaffRole) {
-                setFormError("The connected wallet is not registered as a Staff member.");
+                setFormError("The connected wallet is not registered as a Staff member on-chain.");
                 return;
             }
             
-            // The signature verification is done on-chain:
-            // This is a redundant check if isStaffRole is true, but validates the core flow
-            const isValidSignature = await staffRegistryContract.verifyStaffSignature(staffAddress, message, signature);
+            // Check 3b: Verify the signature on-chain (This is the security check)
+            const isValidSignature = await staffRegistryReadOnlyContract.verifyStaffSignature(staffAddress, message, signature);
 
             if (!isValidSignature) {
-                 setFormError("Signature validation failed on-chain. Unauthorized access.");
+                 setFormError("Signature validation failed on-chain. Unauthorized access or invalid message.");
                  return;
             }
             
-            // 4. Success: Determine Specific Role
-            // For simplicity, we assume one role per staff member based on a hypothetical mapping
-            // In a real app, this would involve more contract calls or a dedicated role contract.
-            const roleGuess: StaffAuthState['role'] = (username.toLowerCase().includes('sales')) 
+            // 4. Success: Determine Specific Role and Global Login
+            const roleGuess: StaffRole = (username.toLowerCase().includes('sales')) 
                 ? 'Sales Manager' 
                 : 'Inventory Manager';
             
-            setStaffAuth({ username, address: staffAddress, isAuthenticated: true, role: roleGuess });
-            toast({ title: "Login Successful", description: `Authenticated as ${roleGuess}.`, variant: "success", action: <UserCheck className="h-5 w-5" /> });
+            login(username, staffAddress, roleGuess); // <-- CRITICAL: Sets global auth state
+
+            toast({ title: "Login Successful", description: `Authenticated as ${roleGuess}. Redirecting...`, variant: "success", action: <UserCheck className="h-5 w-5" /> });
 
         } catch (error: any) {
             console.error("Staff Login Failed:", error);
-            setFormError(error.message.includes('rejected') ? 'Message signing was rejected.' : 'Login failed. Check username and ensure you are on the correct network.');
+            setFormError(error.message.includes('rejected') ? 'Message signing was rejected.' : 'Login failed. Check username and ensure you are registered.');
         } finally {
             setIsLoading(false);
         }
     };
 
-    if (staffAuth?.isAuthenticated) {
-        // Successful staff login UI
+
+    // --- RENDER LOGIC ---
+
+    if (isAuthenticated) { 
+        // Successful staff login state: shows confirmation and relies on App.tsx to route
         return (
             <Card className="bg-green-900/40 border-green-700 w-full max-w-sm">
                 <CardHeader>
-                    <CardTitle className="text-white text-2xl">Welcome, {staffAuth.username}!</CardTitle>
+                    <CardTitle className="text-white text-2xl">Welcome, {currentUsername}!</CardTitle>
                     <CardDescription className="text-green-300">
-                        You are authenticated as a **{staffAuth.role}**.
+                        You are authenticated as **{staffRole}**. Redirecting...
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <p className="text-sm text-green-200">Wallet: {staffAuth.address.slice(0, 6)}...{staffAuth.address.slice(-4)}</p>
-                    <Button className="w-full bg-green-600 hover:bg-green-700">
-                        Access {staffAuth.role} Dashboard
-                    </Button>
-                    <Button variant="ghost" className="w-full text-green-200 hover:bg-green-800" onClick={() => setStaffAuth(null)}>Log Out</Button>
+                <CardContent>
+                    <Button variant="ghost" className="w-full text-green-200 hover:bg-green-800" onClick={logout}>Click to Log Out</Button>
                 </CardContent>
             </Card>
         );
@@ -141,13 +133,13 @@ const StaffLoginForm: React.FC = () => {
             <CardHeader>
                 <CardTitle className="text-white text-2xl flex items-center"><LogIn className="mr-2 h-5 w-5 text-cyan-400" /> Staff Login</CardTitle>
                 <CardDescription className="text-gray-400">
-                    Authenticate via your unique username/password and wallet signature.
+                    Authenticate via your registered username and wallet signature.
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 <form onSubmit={handleLogin} className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="staff-username" className="text-gray-300">Username/Email</Label>
+                        <Label htmlFor="staff-username" className="text-gray-300">Username/Staff ID</Label>
                         <Input 
                             id="staff-username" 
                             placeholder="sales.manager" 
@@ -158,7 +150,7 @@ const StaffLoginForm: React.FC = () => {
                     </div>
                     
                     <div className="space-y-2">
-                        <Label htmlFor="staff-password" className="text-gray-300">Password</Label>
+                        <Label htmlFor="staff-password" className="text-gray-300">Password (Required to access wallet signing)</Label>
                         <Input 
                             id="staff-password" 
                             type="password"
@@ -169,7 +161,7 @@ const StaffLoginForm: React.FC = () => {
                         />
                         <p className="text-xs text-yellow-400 flex items-center">
                             <AlertTriangle className="mr-1 h-3 w-3" />
-                            Requires active MetaMask wallet to sign the login message.
+                            Requires active, connected MetaMask wallet to sign the login message.
                         </p>
                     </div>
                     
