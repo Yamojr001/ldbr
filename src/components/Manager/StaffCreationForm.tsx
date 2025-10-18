@@ -1,4 +1,4 @@
-// src/components/Manager/StaffCreationForm.tsx (FINAL CODE)
+// src/components/Manager/StaffCreationForm.tsx (FINAL OPTIMIZED CODE)
 
 import React, { useState } from 'react';
 import { useEthers } from '@/context/EthersContext';
@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { useToast } from '../ui/use-toast'; 
 import { Loader2, UserPlus, AlertTriangle, CheckCircle } from 'lucide-react';
-import * as ethers from 'ethers'; // FIX: Use wildcard import for consistent namespace access
+import * as ethers from 'ethers'; 
+import { isAddress } from 'ethers'; // Direct import for utility
 import { STAFF_ROLE_HASH, MANAGER_ROLE_HASH } from '@/lib/config'; 
 
 type StaffRole = 'Sales Manager' | 'Inventory Manager';
@@ -33,8 +34,8 @@ const StaffCreationForm: React.FC = () => {
             return;
         }
 
-        // 1. Client-side Validation (FIX: Use ethers.isAddress)
-        if (!ethers.isAddress(walletAddress)) { 
+        // 1. Client-side Validation 
+        if (!isAddress(walletAddress)) { 
             setFormError("Invalid Ethereum Wallet Address.");
             return;
         }
@@ -43,7 +44,6 @@ const StaffCreationForm: React.FC = () => {
 
         try {
             // 2. Transaction Call: createStaffAccount(string memory username, address staffAddress)
-            // This is the transaction that is currently failing due to RPC/Contract Revert
             const tx = await staffRegistryContract.createStaffAccount(username, walletAddress);
 
             toast({ title: "Transaction Sent", description: `Creating ${role} account for ${username}.` });
@@ -65,14 +65,16 @@ const StaffCreationForm: React.FC = () => {
         } catch (error: any) {
             console.error("Staff Creation Error:", error);
             
-            // NOTE: The RPC error is currently masking the true contract revert reason.
-            let message = "Transaction failed. Please check network status (RPC/MetaMask Console) for true error.";
+            let message = "Transaction failed. Please check network stability.";
             
-            // Attempt to parse common known errors (if they were returned)
-            if (error.reason && (error.reason.includes("UsernameTaken") || error.reason.includes("AccountExists"))) {
-                message = "Username or Wallet Address already registered.";
-            } else if (error.code === 'CALL_EXCEPTION') {
-                 message = "Transaction Execution Failed. Likely not the Manager or RPC issue.";
+            if (error.code === 'CALL_EXCEPTION') {
+                // If ethers can't decode the custom error, we provide the most likely reasons:
+                message = "Transaction Execution Failed (Revert). Likely due to Unauthorized role, or a pre-existing username/address.";
+            } else if (error.code === 'INSUFFICIENT_FUNDS') {
+                 message = "Insufficient funds in your wallet to cover the Gas fee.";
+            } else if (error.reason) {
+                // Handle contract's revert reason if returned by RPC (e.g., "UsernameTaken")
+                 message = error.reason;
             }
             
             setFormError(message);

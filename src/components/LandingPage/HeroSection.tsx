@@ -8,7 +8,6 @@ import WalletConnectButton from '../auth/WalletConnectButton';
 const HeroSection: React.FC = () => {
     
     const handleStaffLogin = () => {
-        // Scroll down to the staff login area (below FeatureGrid)
         document.getElementById('staff-login')?.scrollIntoView({ behavior: 'smooth' });
     };
     
