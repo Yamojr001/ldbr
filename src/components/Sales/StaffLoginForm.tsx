@@ -1,4 +1,4 @@
-// src/components/Sales/StaffLoginForm.tsx (FINAL CODE: Signature + VerifyStaffSignature)
+// src/components/Sales/StaffLoginForm.tsx (FINAL CODE with EXTREME DEBUG)
 
 import React, { useState, useEffect } from 'react';
 import { useEthers } from '@/context/EthersContext';
@@ -6,22 +6,28 @@ import { useStaffAuth, StaffRole } from '@/context/StaffAuthContext';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Separator } from '../ui/separator'; 
 import { useToast } from '../ui/use-toast'; 
 import { Loader2, LogIn, AlertTriangle, UserCheck } from 'lucide-react';
 import * as ethers from 'ethers'; 
 import { STAFF_ROLE_HASH, CONTRACTS } from '@/lib/config'; 
 
+// --- DEBUG TYPE ---
+interface DebugError {
+    type: 'NETWORK' | 'AUTH' | 'ROLE' | 'REVERT';
+    details: string;
+    action: string;
+}
+
 const StaffLoginForm: React.FC = () => {
-    // We remove the Passkey logic and use the Signer logic exclusively
     const { provider, signer, address: connectedAddress, isConnected, connectWallet, disconnectWallet } = useEthers();
     const { login, logout, isAuthenticated, username: currentUsername, role: staffRole } = useStaffAuth();
     const { toast } = useToast();
     
     const [username, setUsername] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [formError, setFormError] = useState<string | null>(null);
+    const [debugError, setDebugError] = useState<DebugError | null>(null); 
 
     // Auto-logout the staff member if the underlying MetaMask connection is lost
     useEffect(() => {
@@ -34,10 +40,10 @@ const StaffLoginForm: React.FC = () => {
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        setFormError(null);
+        setDebugError(null); 
 
         if (!username) { 
-            setFormError("Username is required.");
+            toast({ title: "Required Field", description: "Username is required.", variant: "destructive" });
             return;
         }
         
@@ -47,14 +53,12 @@ const StaffLoginForm: React.FC = () => {
             // 1. Initial State Check and Connection Attempt
             if (!isConnected) { await connectWallet(); }
             if (!signer || !connectedAddress) {
+                 // This catches the user rejecting the connection in the previous line
                  throw new Error("Wallet connection failed or was rejected.");
             }
             
             const staffAddress = connectedAddress; 
-            
-            // 2. Generate Message and Signature (Unique message for security)
             const message = `Login to $DAG$ Ledger for user: ${username} @ ${Date.now()}`;
-            // CRITICAL STEP: Triggers MetaMask Pop-up for signature
             const signature = await signer.signMessage(message); 
 
             // 3. Verify Signature and Role On-Chain
@@ -64,20 +68,28 @@ const StaffLoginForm: React.FC = () => {
                 provider 
             );
 
-            // 3a: Role Check (Is this wallet a Staff member?)
+            // 3a: Role Check 
             const isStaffRole = await staffRegistryReadOnlyContract.hasRole(STAFF_ROLE_HASH, staffAddress);
             
             if (!isStaffRole) {
-                setFormError("The connected wallet is not registered as a Staff member on-chain.");
-                // Note: No auto-disconnect here, as user might want to try Manager login or Staff login.
+                setDebugError({
+                    type: 'ROLE',
+                    details: `Wallet address ${staffAddress.slice(0, 8)}... is not registered as Staff.`,
+                    action: `Please ask the Manager to create your account or ensure you've connected the correct wallet.`,
+                });
+                disconnectWallet(); 
                 return;
             }
             
-            // 3b: Signature Verification (On-chain proof of ownership)
+            // 3b: Signature Verification 
             const isValidSignature = await staffRegistryReadOnlyContract.verifyStaffSignature(staffAddress, message, signature);
 
             if (!isValidSignature) {
-                 setFormError("Signature validation failed on-chain. Unauthorized access.");
+                 setDebugError({
+                    type: 'AUTH',
+                    details: `The digital signature failed on-chain verification.`,
+                    action: `Your wallet is compromised or the login message was altered.`,
+                });
                  return;
             }
             
@@ -90,9 +102,17 @@ const StaffLoginForm: React.FC = () => {
 
         } catch (error: any) {
             console.error("Staff Login Failed:", error);
-            // Handle user rejection and RPC errors
-            const errorMessage = error.message.includes('rejected') ? 'Signature was rejected.' : 'Login failed. RPC/Network issues.';
-            setFormError(errorMessage);
+            let debug: DebugError;
+
+            if (error.message && error.message.includes('rejected')) {
+                debug = { type: 'AUTH', details: 'MetaMask signature request was rejected by the user.', action: 'Click "Log In" again and approve the signature request.' };
+            } else if (error.code === 'CALL_EXCEPTION' || error.message.includes('could not decode result data')) {
+                // This captures the RPC/BAD_DATA error
+                debug = { type: 'NETWORK', details: 'Unstable RPC node error. Contract read failed.', action: 'Check console for "BAD_DATA" errors. You must switch to a stable RPC endpoint (in MetaMask).' };
+            } else {
+                debug = { type: 'NETWORK', details: `General connection/Ethers error. Code: ${error.code || 'N/A'}`, action: 'Check your MetaMask network connection and ensure the RPC URL is stable.' };
+            }
+            setDebugError(debug);
         } finally {
             setIsLoading(false);
         }
@@ -123,7 +143,7 @@ const StaffLoginForm: React.FC = () => {
             <CardHeader>
                 <CardTitle className="text-white text-2xl flex items-center"><LogIn className="mr-2 h-5 w-5 text-cyan-400" /> Staff Login</CardTitle>
                 <CardDescription className="text-gray-400">
-                    Authenticate using your registered Username. Requires Wallet Signature.
+                    Authenticate using your registered Wallet Address via digital signature.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -139,21 +159,26 @@ const StaffLoginForm: React.FC = () => {
                         />
                     </div>
                     
+                    {/* EXTREME DEBUG PANEL - Appears only on failure */}
+                    {debugError && (
+                        <div className="p-3 bg-red-900/30 border border-red-700 rounded-lg text-sm space-y-2">
+                            <p className="font-bold text-red-400 flex items-center">
+                                <AlertTriangle className="mr-2 h-4 w-4" />
+                                EXECUTION FAILED: {debugError.type}
+                            </p>
+                            <Separator className="bg-red-700" />
+                            <p className="text-red-200">Error Details: {debugError.details}</p>
+                            <p className="font-semibold text-yellow-300 mt-2">Action: {debugError.action}</p>
+                        </div>
+                    )}
+                    
+                    {/* Wallet Connection Status */}
                     <div className="p-3 bg-yellow-900/30 border border-yellow-700 rounded-lg">
-                        <p className="text-sm font-semibold text-yellow-300 flex items-center mb-1">
-                            <AlertTriangle className="mr-2 h-4 w-4" />
-                            Security Protocol
-                        </p>
-                        <p className="text-xs text-yellow-100">
-                            Clicking "Log In" will initiate a **digital signature** request in your MetaMask wallet.
+                        <p className="text-xs text-yellow-100 flex items-center">
+                            <AlertTriangle className="mr-1 h-3 w-3" />
+                            Status: {isConnected ? 'Wallet is Connected' : 'Wallet NOT Connected (will auto-connect)'}
                         </p>
                     </div>
-                    
-                    {formError && (
-                        <p className="text-sm font-medium text-red-400 flex items-center">
-                            <AlertTriangle className="mr-2 h-4 w-4" />{formError}
-                        </p>
-                    )}
 
                     <Button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold" disabled={isLoading}>
                         {isLoading ? (
