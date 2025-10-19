@@ -1,14 +1,17 @@
+// src/components/auth/WalletConnectButton.tsx (FINAL CODE)
+
 import React from 'react';
 import { Button } from '../ui/button';
 import { Wallet, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useManagerAuth } from '@/hooks/useManagerAuth'; 
-import { useEthers } from '@/context/EthersContext'; 
+import useWalletStatus from '@/hooks/useWalletStatus'; // FIX: Use the combined hook
 
 const WalletConnectButton: React.FC = () => {
-  const { isConnected, address, connectWallet, error } = useEthers();
-  // useManagerAuth uses the real connected address to check the on-chain role
-  const { isManager, isLoadingAuth } = useManagerAuth(); 
+  // FIX: Destructure from the single, stable combined hook
+  const { 
+    isConnected, address, connectWallet, disconnectWallet, 
+    error, isManager, isLoadingAuth 
+  } = useWalletStatus(); 
 
   const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '';
 
@@ -30,18 +33,17 @@ const WalletConnectButton: React.FC = () => {
         )}>
             {isManager ? "MANAGER" : "UNAUTHORIZED"}
         </span>
-        <Button onClick={useEthers().disconnectWallet} variant="ghost" className="text-gray-400 hover:text-white border-gray-700 hover:bg-gray-800">
+        <Button onClick={disconnectWallet} variant="ghost" className="text-gray-400 hover:text-white border-gray-700 hover:bg-gray-800">
           {shortAddress} / Disconnect
         </Button>
       </div>
     );
   }
 
-  // Real connection initiated here
   return (
     <div className="relative">
       <Button 
-        onClick={connectWallet} // <-- This initiates the real MetaMask pop-up
+        onClick={connectWallet}
         variant="outline" 
         className={cn(
           "text-cyan-400 border-cyan-400 font-semibold",

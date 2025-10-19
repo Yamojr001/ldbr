@@ -1,33 +1,29 @@
-// src/components/Sales/StaffLoginForm.tsx (FINAL CODE)
+// src/components/Sales/StaffLoginForm.tsx (FINAL CODE: Signature + VerifyStaffSignature)
 
-import React, { useState, useEffect } from 'react'; 
+import React, { useState, useEffect } from 'react';
 import { useEthers } from '@/context/EthersContext';
-import { useStaffAuth, StaffRole } from '@/context/StaffAuthContext'; // <-- NEW IMPORT
+import { useStaffAuth, StaffRole } from '@/context/StaffAuthContext'; 
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
+import { Separator } from '../ui/separator'; 
 import { useToast } from '../ui/use-toast'; 
 import { Loader2, LogIn, AlertTriangle, UserCheck } from 'lucide-react';
-import * as ethers from 'ethers'; // Use for contract/signer access
-import { STAFF_ROLE_HASH } from '@/lib/config'; 
+import * as ethers from 'ethers'; 
+import { STAFF_ROLE_HASH, CONTRACTS } from '@/lib/config'; 
 
 const StaffLoginForm: React.FC = () => {
-    // Ethers hooks: for connected wallet, provider, and contract interaction
-    const { provider, signer, address: connectedAddress, isConnected } = useEthers();
-    
-    // Staff Auth context: for state management after successful login
+    // We remove the Passkey logic and use the Signer logic exclusively
+    const { provider, signer, address: connectedAddress, isConnected, connectWallet, disconnectWallet } = useEthers();
     const { login, logout, isAuthenticated, username: currentUsername, role: staffRole } = useStaffAuth();
-    
     const { toast } = useToast();
     
-    // Local Form State
     const [username, setUsername] = useState('');
-    const [password, setPassword] = useState(''); 
     const [isLoading, setIsLoading] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
 
-    // Effect to auto-logout the staff member if the underlying MetaMask connection is lost
+    // Auto-logout the staff member if the underlying MetaMask connection is lost
     useEffect(() => {
         if (!isConnected && isAuthenticated) {
             logout();
@@ -40,68 +36,63 @@ const StaffLoginForm: React.FC = () => {
         e.preventDefault();
         setFormError(null);
 
-        // 1. Initial State Check (Must have a connected wallet for signing)
-        if (!provider || !signer || !isConnected || !connectedAddress) {
-            setFormError("MetaMask connection is required to sign the login message. Please connect first.");
-            return;
-        }
-
-        if (!username || !password) {
-            setFormError("Username and password are required.");
+        if (!username) { 
+            setFormError("Username is required.");
             return;
         }
         
         setIsLoading(true);
 
         try {
-            // NOTE ON REAL-WORLD SECURITY: 
-            // In a real application, the 'password' would be used with a key derivation function (like PBKDF2) 
-            // to derive a temporary private key for signing, or the user is asked to sign with their wallet.
-            // Here, we use the connected wallet to sign, relying on the user having secured their wallet.
+            // 1. Initial State Check and Connection Attempt
+            if (!isConnected) { await connectWallet(); }
+            if (!signer || !connectedAddress) {
+                 throw new Error("Wallet connection failed or was rejected.");
+            }
             
             const staffAddress = connectedAddress; 
-
-            // 2. Generate Message and Signature (Unique message to prevent replay attacks)
+            
+            // 2. Generate Message and Signature (Unique message for security)
             const message = `Login to $DAG$ Ledger for user: ${username} @ ${Date.now()}`;
-            const signature = await signer.signMessage(message);
+            // CRITICAL STEP: Triggers MetaMask Pop-up for signature
+            const signature = await signer.signMessage(message); 
 
-            // 3. Verify Signature and Role On-Chain (Read-only call)
-            // We use the connected address's contract instance (staffRegistryContract) for the best state
-            // But for clarity and using the read-only provider for view calls:
+            // 3. Verify Signature and Role On-Chain
             const staffRegistryReadOnlyContract = new ethers.Contract(
                 CONTRACTS.StaffRegistry.address,
                 new ethers.Interface(CONTRACTS.StaffRegistry.abi as any[]),
                 provider 
             );
 
-            // Check 3a: Does the connected wallet have the STAFF_ROLE?
+            // 3a: Role Check (Is this wallet a Staff member?)
             const isStaffRole = await staffRegistryReadOnlyContract.hasRole(STAFF_ROLE_HASH, staffAddress);
             
             if (!isStaffRole) {
                 setFormError("The connected wallet is not registered as a Staff member on-chain.");
+                // Note: No auto-disconnect here, as user might want to try Manager login or Staff login.
                 return;
             }
             
-            // Check 3b: Verify the signature on-chain (This is the security check)
+            // 3b: Signature Verification (On-chain proof of ownership)
             const isValidSignature = await staffRegistryReadOnlyContract.verifyStaffSignature(staffAddress, message, signature);
 
             if (!isValidSignature) {
-                 setFormError("Signature validation failed on-chain. Unauthorized access or invalid message.");
+                 setFormError("Signature validation failed on-chain. Unauthorized access.");
                  return;
             }
             
-            // 4. Success: Determine Specific Role and Global Login
-            const roleGuess: StaffRole = (username.toLowerCase().includes('sales')) 
-                ? 'Sales Manager' 
-                : 'Inventory Manager';
+            // 4. Success: Global Login
+            const roleGuess: StaffRole = (username.toLowerCase().includes('sales')) ? 'Sales Manager' : 'Inventory Manager';
             
-            login(username, staffAddress, roleGuess); // <-- CRITICAL: Sets global auth state
+            login(username, staffAddress, roleGuess); 
 
             toast({ title: "Login Successful", description: `Authenticated as ${roleGuess}. Redirecting...`, variant: "success", action: <UserCheck className="h-5 w-5" /> });
 
         } catch (error: any) {
             console.error("Staff Login Failed:", error);
-            setFormError(error.message.includes('rejected') ? 'Message signing was rejected.' : 'Login failed. Check username and ensure you are registered.');
+            // Handle user rejection and RPC errors
+            const errorMessage = error.message.includes('rejected') ? 'Signature was rejected.' : 'Login failed. RPC/Network issues.';
+            setFormError(errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -111,13 +102,12 @@ const StaffLoginForm: React.FC = () => {
     // --- RENDER LOGIC ---
 
     if (isAuthenticated) { 
-        // Successful staff login state: shows confirmation and relies on App.tsx to route
         return (
             <Card className="bg-green-900/40 border-green-700 w-full max-w-sm">
                 <CardHeader>
                     <CardTitle className="text-white text-2xl">Welcome, {currentUsername}!</CardTitle>
                     <CardDescription className="text-green-300">
-                        You are authenticated as **{staffRole}**. Redirecting...
+                        You are authenticated as **{staffRole}**. Accessing dashboard...
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -133,7 +123,7 @@ const StaffLoginForm: React.FC = () => {
             <CardHeader>
                 <CardTitle className="text-white text-2xl flex items-center"><LogIn className="mr-2 h-5 w-5 text-cyan-400" /> Staff Login</CardTitle>
                 <CardDescription className="text-gray-400">
-                    Authenticate via your registered username and wallet signature.
+                    Authenticate using your registered Username. Requires Wallet Signature.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -149,19 +139,13 @@ const StaffLoginForm: React.FC = () => {
                         />
                     </div>
                     
-                    <div className="space-y-2">
-                        <Label htmlFor="staff-password" className="text-gray-300">Password (Required to access wallet signing)</Label>
-                        <Input 
-                            id="staff-password" 
-                            type="password"
-                            placeholder="••••••••" 
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                        />
-                        <p className="text-xs text-yellow-400 flex items-center">
-                            <AlertTriangle className="mr-1 h-3 w-3" />
-                            Requires active, connected MetaMask wallet to sign the login message.
+                    <div className="p-3 bg-yellow-900/30 border border-yellow-700 rounded-lg">
+                        <p className="text-sm font-semibold text-yellow-300 flex items-center mb-1">
+                            <AlertTriangle className="mr-2 h-4 w-4" />
+                            Security Protocol
+                        </p>
+                        <p className="text-xs text-yellow-100">
+                            Clicking "Log In" will initiate a **digital signature** request in your MetaMask wallet.
                         </p>
                     </div>
                     
@@ -171,9 +155,9 @@ const StaffLoginForm: React.FC = () => {
                         </p>
                     )}
 
-                    <Button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold" disabled={isLoading || !isConnected}>
+                    <Button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold" disabled={isLoading}>
                         {isLoading ? (
-                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Signing In...</>
+                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Requesting Signature...</>
                         ) : (
                             "Log In (Sign Message)"
                         )}
